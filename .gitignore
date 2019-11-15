@@ -5,3 +5,5 @@ testing_MP_API_calls.ipynb
 pure_component_magpie/
 .ipynb_checkpoints/
 *.swp
+.gitignore
+my_MP_API_key.txt

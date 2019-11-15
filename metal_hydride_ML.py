@@ -109,7 +109,7 @@ def cluster_feature_vs_feature(x,y,min_samples=3, eps=10):
                                core_distances=clust.core_distances_,
                                ordering=clust.ordering_, eps=eps)
     final_labels = labels_dbscan
-    print("Computed %d classes"%len(np.unique(final_labels)))
+    #print("Computed %d classes"%len(np.unique(final_labels)))
     return X, final_labels
 
 def column_to_label(colname):
@@ -373,9 +373,13 @@ def plot_feature_vs_feature(df1, feature1, df2, feature2, df3 = None, feature3 =
         if(specialdelHvsdelS):
             # reset figure
             plt.close()
-            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize)
+            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(3.3,2))
             z = np.array(getattr(df2, "LnEquilibrium_Pressure_25C"),dtype=float)[originalind]
 
+            print("SC with delH vs lnPeq:", stats.spearmanr(z,x))
+            print("SC with delH vs lnPeq:", stats.spearmanr(z,y))
+            #print("SC with delH vs lnPeq:", sklearn.linear_model.LinearRegression().fit(z,x).score(z,x))
+            #print("SC with delH vs lnPeq:", sklearn.linear_model.LinearRegression().fit(z,y).score(z,y))
             # concatenate delH and delS and randomly scramble the order
             allzs = np.array(list(z)+list(z))
             allvals = np.array(list(y)+list(x))
@@ -391,11 +395,22 @@ def plot_feature_vs_feature(df1, feature1, df2, feature2, df3 = None, feature3 =
             ax.scatter([],[],color='green',edgecolor='black',
                        linewidth=0.3,label=column_to_label('normalized_delS'))
 
-            ax.set_xlabel(column_to_label("LnEquilibrium_Pressure_25C"))
+            ax.legend(loc="best",borderpad=0.15,handletextpad=0.25)
+
             ax.set_ylabel(r'$Dimensionless$')
             maxy = max(max(y),max(x))
             ax.set_ylim((None,maxy+0.1*maxy))
-            ax.legend(loc="best",borderpad=0.15,handletextpad=0.25)
+            ax.set_yticks([0,10,20,30])
+
+            #axtwin = ax.twinx()
+            #axtwin.scatter(z,y/x,facecolor='none',edgecolor='gold',s=5)
+            #ax.scatter(z,y/x,facecolor='none',edgecolor='blue',s=20)
+            ax.set_xticks([-20,-10,0])
+            #ax.set_ylabel(r'$\Delta H (RT^{\circ})^{-1} / \Delta S R^{-1}$')
+
+
+            ax.set_xlabel(column_to_label("LnEquilibrium_Pressure_25C"))
+
 
 
         # Draws the parity line for variables that should be y=x
@@ -426,18 +441,22 @@ def plot_prediction_vs_custom_volumes(df1, df2, limlower1=None,limupper1=None,
     x, y, originalind = filter_by_predict_value_vs_value(x, y, limlower1, limupper1, 
                                                          limlower2,limupper2,discard_nan=True)
     SC = stats.spearmanr(x,y)
+    print(SC)
 
     x1 = np.array(getattr(df1, "volume_ps"),dtype=float)
     y1 = np.array(getattr(df2, "LnEquilibrium_Pressure_25C"),dtype=float)
     x1, y1, originalind1 = filter_by_predict_value_vs_value(x1, y1, limlower1, limupper1, 
                                                          limlower2,limupper2,discard_nan=True)
     SC1 = stats.spearmanr(x1,y1)
+    print(SC1)
 
     cuevasdata = np.loadtxt("CUEVAS/Cuevas2002_H2PressureVsCellV.csv",dtype='float',delimiter=',')
     SC_cuevas = stats.spearmanr(cuevasdata[:,0],cuevasdata[:,1])
+    print(SC_cuevas)
 
     smithdata = np.loadtxt("SMITH/Smith1983_H2PressureVsVsite.csv",dtype='float',delimiter=',')
     SC_smith = stats.spearmanr(smithdata[:,0],smithdata[:,1])
+    print(SC_smith)
 
     figsize=(3.3,2.6)
     figsize=(2.3,2.6)
@@ -512,8 +531,8 @@ def plot_delHprediction_vs_custom_volumes(df1, df2, limlower1=None,limupper1=Non
 
 def bargraph_on_class(df):
     all_classes = df["Material_Class"].value_counts()
-    print(all_classes.index)
-    print(list(all_classes))
+    #print(all_classes.index)
+    #print(list(all_classes))
 
     fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize=(3.3,2.6))
     ax.bar([i for i in range(1,len(all_classes)+1)],
@@ -534,7 +553,7 @@ def bargraph_on_class(df):
 
 class H2Data(object):
     
-    def __init__(self, fname, remove_nan_attr, remove_classes, headerlength=6):
+    def __init__(self, fname, remove_nan_attr, remove_classes, MP_API_key = None, headerlength=6):
 
         self.R = 0.008314159 # kJ / (mol K)       
         self.fname           = fname
@@ -542,7 +561,12 @@ class H2Data(object):
         self.remove_classes  = remove_classes
         self.headerlength    = headerlength
 
-        self.MP_API_key = 'WffzTTad1Lyx6dHEVRfI'
+        if MP_API_key is None:
+            print("Warning! No Materials Project API key provided, will only work if\n" 
+                  "reusing previously extracted MP features")
+        else:
+            self.MP_API_key = MP_API_key
+        #self.MP_API_key = 'WffzTTad1Lyx6dHEVRfI'
 
 
 
@@ -826,8 +850,8 @@ class H2Data(object):
     def clean_duplicates(self, method='median', verbose=True):
 
         duplicates = self._database[self._database.duplicated(subset='Composition_Formula',keep=False)]
-        if verbose:
-            print(duplicates["Composition_Formula"])
+        #if verbose:
+        #    print(duplicates["Composition_Formula"])
         unique_compositions = set(duplicates['Composition_Formula'])
 
         # since features and predict values stored differently, need to reindex/realign so that 
@@ -839,6 +863,7 @@ class H2Data(object):
         self._features.index = newindices
 
         if verbose:
+            print("\n\nData for all versions of duplicate entries in HYDPARK")
             print("%d dupes found with %d unique = %d to remove"%(len(duplicates),len(unique_compositions),
                                                                   len(duplicates)-len(unique_compositions)))
 
@@ -882,7 +907,6 @@ class H2Data(object):
 
         self._database = self._database.drop(del_ind)
         self._features = self._features.drop(del_ind)
-        print(len(self._database))
         print("Deleting composition, index: ", composition, del_ind)
 
     def clean_heat_of_formation(self, string, method = 'average'):
@@ -901,18 +925,10 @@ class H2Data(object):
 
     def clean_MP_features(self, MP_features, duplicates = "min_energy_per_atom"):
 
-        #success=0
-        #for formula in database._MP_features.keys():
-        #    if database._MP_features[formula] != "Error" and database._MP_features[formula]["response"]:
-        #        pprint(database._MP_features[formula])
-        #        success+=1
-        #    elif database._MP_features[formula] != "Error" and not database._MP_features[formula]["response"]:
-        #        print(formula)
-        #print(success)
-        #sys.exit()
-
-        print("Parsing MP features and removing duplicates by choosing the lowest energy/atom entry")
-        print("Note that some errors were found in MP with the 'nsites' metadata, so I've hard encoded those corrections until further notice")
+        print("\n\nAll overlaps between HYDPARK and MP:\n"
+              "Note: parsing MP features and removing duplicates by choosing the lowest energy/atom entry\n"
+              "Note: some errors were found in MP with the 'nsites' metadata, so I've hard encoded those"
+              "corrections until further notice")
         tmp = {}
         for formula in MP_features.keys():
             #print(formula)
@@ -1309,7 +1325,7 @@ class H2Data(object):
         allX = np.array(self._features, dtype=float)
         ally = np.squeeze(np.array(self._database[predict_column],dtype=float))
        
-        # double check removing any nan's but this has already been done
+        # double check removing any nan's but this has already been donemy_MP_API_key.txt
         # only useful if we wanted to try to train on MP attributes in which case we'd have 
         # to remove all the entries where we didn't find an entry on MP 
         mask = ~np.any(np.isnan(allX), axis=1)
@@ -1333,8 +1349,6 @@ class H2Data(object):
             database = additional_holdout[key]['database']
             this_Xhold = np.array(features)
             this_yhold = np.squeeze(np.array(database[predict_column],dtype=float))
-            print(np.shape(this_Xhold))
-            print(np.shape(this_yhold))
 
             additional_holdout[key]['Xhold']=this_Xhold
             additional_holdout[key]['yhold']=this_yhold
@@ -1406,8 +1420,6 @@ class H2Data(object):
             database = additional_holdout[key]['database']
             this_Xhold = np.array(features)
             this_yhold = np.squeeze(np.array(database[predict_column],dtype=float))
-            print(np.shape(this_Xhold))
-            print(np.shape(this_yhold))
 
             additional_holdout[key]['Xhold']=this_Xhold
             additional_holdout[key]['yhold']=this_yhold
@@ -1502,7 +1514,10 @@ class H2Data(object):
 
             #est = RandomForestRegressor(random_state=seed,**best_param)
             #est.fit(X_train, y_train)
-            dump(est,'savedMLmodel.joblib')
+
+            # set model to attribute for later use
+            self.model = est
+
 
             # evaluate model on the training set
             y_train_pred = est.predict(X_train)
@@ -1619,6 +1634,7 @@ class H2Data(object):
                                   for feature in self._features.columns[sorted_idx][-maxdisplay:]]
                     ax[it,3].set_yticklabels(ticklabels)
                     ax[it,3].set_xlabel('Relative Importance')
+                    ax[it,3].set_xlim((0,100))
                     #ax[it,3].set_title('Variable Importance')
                     #plt.tight_layout(pad=0.1)
                     #plt.show()
@@ -1718,6 +1734,7 @@ class H2Data(object):
                       for feature in self._features.columns[sorted_idx][-maxdisplay:]]
         ax.set_yticklabels(ticklabels)
         ax.set_xlabel(r'$\langle$Relative Importance$\rangle$')
+        ax.set_xlim((0,100))
         plt.tight_layout(pad=0.5)
         #plt.show()
 
@@ -1726,7 +1743,6 @@ class H2Data(object):
         nbins=15
         concatenated = np.concatenate(all_test_pred,axis=1)
         hist, bin_edges = np.histogram(concatenated, bins=nbins)
-        print(hist, bin_edges)
         binned_AEs = [[] for _ in range(len(hist))]
         for i in range(len(concatenated[0,:])):
             bin_ind=1
@@ -1741,13 +1757,10 @@ class H2Data(object):
         allxs = np.array([bin_edges[i-1]+(bin_edges[i]-bin_edges[i-1])/2 for i in range(1,len(bin_edges))])
         allys = np.array([np.mean(data) for data in binned_AEs])
 
-        print(~np.isnan(allys))
         allxs = allxs[~np.isnan(allys)]
         allys = allys[~np.isnan(allys)]
 
 
-        print(allxs)
-        print(allys)
         fig, ax = plt.subplots(nrows=1,ncols=1,figsize=(2.9,2.3))
         ax.hist(concatenated[0,:],color='blue',bins=nbins)
         ax.set_xlabel(r"True %s"%column_to_label(predict_column))
@@ -1778,8 +1791,19 @@ class H2Data(object):
 
 if __name__ == "__main__":
 
-    database     = sys.argv[1]
-    headerlength = int(sys.argv[2])
+    #database     = sys.argv[1]
+    #headerlength = int(sys.argv[2])
+    #API_key_file = sys.argv[3]
+
+    database = "Sandia_Hydride_Database_final.csv"
+    headerlength = 0
+    MP_API_key_file = "my_MP_API_key.txt"
+
+    try:
+        with open(MP_API_key_file,"r") as f:
+            MP_API_key = f.readlines()[0].strip()
+    except:
+        MP_API_key = None
 
     recalculate_HYDPARK = False
     run_training        = False
@@ -1794,19 +1818,20 @@ if __name__ == "__main__":
 
     remove_classes = []
     
-    database = H2Data(database,remove_nan_attr,remove_classes,headerlength=headerlength)
+    database = H2Data(database,remove_nan_attr,remove_classes,headerlength=headerlength,
+                                                              MP_API_key = MP_API_key)
     #database.clean_composition_formula("Mg2Ni.75Fe.25 (M)")
     #database.clean_composition_formula("Mg2(Hg2C.7) (M)")
 
     # Data/features for chemical compositions only, i.e. HYDPARK and HS database
     if recalculate_HYDPARK:
         database.prepare_database_and_features(save=True,
-                                                dbname = "HYDPARK_database.pkl",
-                                                featuresname = "HYDPARK_magpie_features.pkl")
+                                                dbname = "HYDPARK/HYDPARK_database.pkl",
+                                                featuresname = "HYDPARK/HYDPARK_magpie_features.pkl")
         database.prepare_database_and_features_HS("HS/HS_database.csv",
                                                   save=True,
-                                                  dbname="HS_database.pkl",
-                                                  featuresname="HS_magpie_features.pkl")
+                                                  dbname="HS/HS_database.pkl",
+                                                  featuresname="HS/HS_magpie_features.pkl")
     else:
         database.load_database_and_features("HYDPARK/HYDPARK_database.pkl", 
                                             "HYDPARK/HYDPARK_magpie_features.pkl")
@@ -1821,9 +1846,7 @@ if __name__ == "__main__":
     # Analyze/Remove duplicate Composition Formula's in the database
     #database.analyze_duplicates()
     database.clean_duplicates(verbose=True)
-    #database.plot_prediction_distribution(['Heat_of_Formation_kJperMolH2',
-    #                                       'LnEquilibrium_Pressure_25C',
-    #                                       'Entropy_of_Formation_kJperMolH2perK'])
+
 
     # Clean complex hydrides
     allcomplex = database._database.loc[database._database['Material_Class'] ==\
@@ -1837,18 +1860,19 @@ if __name__ == "__main__":
                                #        'features': database._features_HS}}
 
         # For seeing how model depends on feature exclusion
-        remove_cols = [col for col in database._features.columns if col != 'mean_GSvolume_pa']
+        #remove_cols = [col for col in database._features.columns if col != 'mean_GSvolume_pa']
         #database._features= database._features.drop(remove_cols,axis=1)
-        database._features= database._features.drop(['mean_GSvolume_pa'],axis=1)
-        database._features= database._features.drop(['most_GSvolume_pa'],axis=1)
+        #database._features= database._features.drop(['mean_GSvolume_pa'],axis=1)
+        #database._features= database._features.drop(['most_GSvolume_pa'],axis=1)
 
-        #database.run_gradient_boosting_regressor(predict_column='LnEquilibrium_Pressure_25C',
-        #                                         toplot=True,
-        #                                         num_samples=1,
-        #                                         limlower=-20,
-        #                                         limupper=5,
-        #                                         holdlower=False,
-        #                                         holdupper=False)
+        database.run_gradient_boosting_regressor(predict_column='LnEquilibrium_Pressure_25C',
+                                                 toplot=True,
+                                                 num_samples=1,
+                                                 limlower=-20,
+                                                 limupper=5,
+                                                 holdlower=False,
+                                                 holdupper=False)
+        #dump(database.model,'saved_lnPeqo_MLmodel.joblib')
         database.run_gradient_boosting_regressor(additional_holdout=additional_holdout,
                                                  predict_column='Heat_of_Formation_kJperMolH2',
                                                  toplot=True,
@@ -1857,15 +1881,20 @@ if __name__ == "__main__":
                                                  limupper=100,
                                                  holdlower=False,
                                                  holdupper=False)
-        #database.run_gradient_boosting_regressor(additional_holdout=additional_holdout,
-        #                                         predict_column='Entropy_of_Formation_kJperMolH2perK',
-        #                                         toplot=True,
-        #                                         num_samples=1,
-        #                                         limlower=0,
-        #                                         limupper=0.2,
-        #                                         holdlower=False,
-        #                                         holdupper=False)
-    database.model = load("savedMLmodel.joblib")
+        #dump(database.model,'saved_DelH_MLmodel.joblib')
+        database.run_gradient_boosting_regressor(additional_holdout=additional_holdout,
+                                                 predict_column='Entropy_of_Formation_kJperMolH2perK',
+                                                 toplot=True,
+                                                 num_samples=1,
+                                                 limlower=0,
+                                                 limupper=0.2,
+                                                 holdlower=False,
+                                                 holdupper=False)
+        #dump(database.model,'saved_DelS_MLmodel.joblib')
+
+    setattr(database, "lnPeqo_model", load("saved_lnPeqo_MLmodel.joblib"))
+    setattr(database, "DelH_model", load("saved_DelH_MLmodel.joblib"))
+    setattr(database, "DelS_model", load("saved_DelS_MLmodel.joblib"))
         
 
 
@@ -1873,13 +1902,13 @@ if __name__ == "__main__":
     # Now that we have our ML model and understand the feature importance of mean_GSVolume_pa
     # we can further investigate each structure in more detail by querying the Materials Project
     # for structural/electronic structure information not captured by the Magpie descriptors
-
-
     if run_MP_analyze:
 
         # For the cleaned database, get Materials Project (MP) structure features
         if recalculate_MP:
-            MP_features = database.prepare_MP_features(database._database, save=True, fname = "HYDPARK_MP_features.pkl")
+            MP_features = database.prepare_MP_features(database._database, 
+                                                       save=True, 
+                                                       fname = "HYDPARK_MP_features.pkl")
         else:
             MP_features = database.load_MP_features("HYDPARK/HYDPARK_MP_features.pkl")
 
@@ -1891,7 +1920,8 @@ if __name__ == "__main__":
         #cleaned_MP_features = database.compute_MP_volume_descr_1()
 
         # Concatenate MP features to all features
-        feature_list = ['energy_per_atom','formation_energy_per_atom','nsites','density','volume','volume_ps','empty_volume_ps']
+        feature_list = ['energy_per_atom','formation_energy_per_atom','nsites','density','volume',
+                        'volume_ps','empty_volume_ps']
         database.attach_MP_features_to_all(cleaned_MP_features, feature_list) 
 
         # Here we can remove/modify any structures we know to be problematic after more closely
@@ -1909,25 +1939,30 @@ if __name__ == "__main__":
         [database.clean_specific_composition(comp) for comp in allcomplex]
 
         # TODO fix this: Write final dataset for easy manual inspection of data 
-        with open("HYDPARK/HYDPARK_database_cleaned.csv","w") as f:
+        with open("HYDPARK_ML_ready.csv","w") as f:
+            # Not sure why ._database has the MP features at this point but prob from an earlier version
+            database._database = database._database.drop(feature_list,axis=1)
             newdf = pd.concat([database._database, database._features],sort=False, axis=1)
             newdf.to_csv(f)
-        #bargraph_on_class(database._database)
 
-        # Visualize the dependence of equilibrium pressure on mean elemental volume
-        #feat='mean_GSvolume_pa'
-        limlower2=-20
-        #feat='empty_volume_ps'
-        #plot_feature_vs_feature(database._features, feat,
-        #                        database._database, 'LnEquilibrium_Pressure_25C',
-        #                        cluster=False,
-        #                        limlower2=limlower2,
-        #                        limupper2=5,
-        #                        display_SC=True)
+
+
+        ###############################################################################################
+        # Visualize features, model performance, other database statistics
+
+        # Show the material class imbalance in the dataset
+        if False:
+            bargraph_on_class(database._database)
+
+        # Show the imbalance in thermodynamic properties
+        if False:
+            database.plot_prediction_distribution(['Heat_of_Formation_kJperMolH2',
+                                                   'LnEquilibrium_Pressure_25C',
+                                                   'Entropy_of_Formation_kJperMolH2perK'])
 
         # Visualize the entropy/enthalpy trade off from individual normalized contributions
         # to lnPeqo 
-        if False:
+        if True:
             plot_feature_vs_feature(\
                                     database._database, 'Entropy_of_Formation_kJperMolH2perK',
                                     database._database, 'Heat_of_Formation_kJperMolH2',
@@ -1990,12 +2025,12 @@ if __name__ == "__main__":
                                     display_SC=True,
                                     figsize=(5,3.5))
         # Visualize the dependence of lnPeqo on nu_pa^Magpie colored by material class
-        if True:
+        if False:
             plot_feature_vs_feature(\
                                     database._features, 'mean_GSvolume_pa',
                                     database._database, 'LnEquilibrium_Pressure_25C',
                                     df3 = database._database, feature3 = 'Material_Class',
-                                    limlower2=limlower2,
+                                    limlower2=-20,
                                     limupper2=5,
                                     cluster=False,
                                     display_SC=True,
@@ -2093,7 +2128,7 @@ if __name__ == "__main__":
             feat='volume'
             plot_feature_vs_feature(database._features, feat,
                                     database._database, 'LnEquilibrium_Pressure_25C',
-                                    limlower2=limlower2,
+                                    limlower2=-20,
                                     limupper2=5,
                                     cluster=True,
                                     display_SC=False,
@@ -2102,7 +2137,7 @@ if __name__ == "__main__":
             # Plot fig: element_vs_site_volumes.pdf
             plot_prediction_vs_custom_volumes(database._features,
                                     database._database,
-                                    limlower2=limlower2,
+                                    limlower2=-20,
                                     limupper2=5,
                                     display_SC=True)
 
@@ -2113,10 +2148,15 @@ if __name__ == "__main__":
                                                    limupper2=100)
 
 
-        # Validate on U Ni 5
-        m = MagpieServer()
-        batch = ["UNi5","U.25La.75Ni5","U.5La.5Ni5","U.25La.75Ni5"]
-        magpie_attr  = m.generate_attributes(method,batch)
-        predicitions = database.model.predict(magpie_attr)
-        print(predictions)
+        # Predict random composition
+        #comp = ["W0.5Zn1.5Al0.2B"]
+        #print("Predicting random composition: %s"%comp)
+        #m = MagpieServer()
+        #batch = comp
+        #magpie_attr  = m.generate_attributes("oqmd-dH",batch)
+        #predictions = database.DelH_model.predict(magpie_attr)
+        #print(predictions)
+        #predictions = database.lnPeqo_model.predict(magpie_attr)
+        #print(predictions)
+
 
