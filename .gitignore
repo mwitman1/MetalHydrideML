@@ -7,3 +7,4 @@ pure_component_magpie/
 *.swp
 .gitignore
 my_MP_API_key.txt
+oqmd/
