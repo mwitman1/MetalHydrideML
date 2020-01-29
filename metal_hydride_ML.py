@@ -566,7 +566,6 @@ class H2Data(object):
                   "reusing previously extracted MP features")
         else:
             self.MP_API_key = MP_API_key
-        #self.MP_API_key = 'WffzTTad1Lyx6dHEVRfI'
 
 
 
